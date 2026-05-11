@@ -3,14 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Payments - Developer Example</title>
+    <title>Global Payments - Network Tokenization</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://globalpayments-samples.github.io/css/styles.css">
+    <script src="https://js.globalpay.com/4.1.11/globalpayments.js"></script>
+    <style>
+        .credit-card-card-expiration,
+        .credit-card-card-cvv {
+            margin: 0 !important;
+        }
+        .test-cards-link:hover {
+            background: #0052a3 !important;
+        }
+        .result-field {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .result-field:last-child {
+            border-bottom: none;
+        }
+        .result-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .result-value {
+            font-family: monospace;
+            color: #212529;
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
     <header class="gp-header">
         <div class="gp-container">
             <div class="gp-header-content">
@@ -21,7 +47,7 @@
                     </picture>
                 </div>
                 <nav class="gp-header-nav">
-                  <a href="https://developer.globalpayments.com/">Documentation</a>
+                    <a href="https://developer.globalpayments.com/">Documentation</a>
                     <a href="https://developer.globalpayments.com/api/references-overview">API Reference</a>
                     <a href="https://developer.globalpayments.com/docs/integration-options/sdk/overview">SDKs</a>
                 </nav>
@@ -30,171 +56,124 @@
     </header>
 
     <div class="gp-container">
-        <!-- Page Title -->
-        <h1 class="gp-page-title">SDK Integration Examples</h1>
-        <p class="gp-page-subtitle">Explore comprehensive examples of Global Payments SDK implementations across different payment scenarios.</p>
+        <h1 class="gp-page-title" style="text-align: center;">Network Tokenization</h1>
+        <p class="gp-page-subtitle" style="text-align: center;">Create network tokens managed by Visa/Mastercard and process payments using stored token IDs.</p>
 
-        <!-- Tabs -->
         <div class="gp-tabs">
             <div class="gp-tab-list">
-                <button class="gp-tab-button active" data-tab="payment-form">Payment Form</button>
-                <button class="gp-tab-button" data-tab="tokenization">Tokenization</button>
-                <button class="gp-tab-button" data-tab="webhooks">Webhooks</button>
-                <button class="gp-tab-button" data-tab="recurring">Recurring Payments</button>
+                <button class="gp-tab-button active" data-tab="create-token">Create Network Token</button>
+                <button class="gp-tab-button" data-tab="process-payment">Process Payment</button>
             </div>
 
-            <!-- Payment Form Tab -->
-            <div class="gp-tab-content active" id="payment-form">
+            <!-- Create Network Token Tab -->
+            <div class="gp-tab-content active" id="create-token">
                 <div class="gp-card">
-                    <div class="gp-card-header">
-                        <h2 class="gp-card-title">Credit Card Payment Form</h2>
+                    <div class="gp-card-header" style="text-align: center;">
+                        <h2 class="gp-card-title">Create Network Token</h2>
                         <p class="gp-card-description">
-                            Secure payment processing using Global Payments tokenization with client-side form validation.
+                            Enter card details to create a network token. The card brand (Visa/Mastercard) will manage the token lifecycle, keeping credentials up-to-date.
                         </p>
                     </div>
-                    
-                    <form id="payment-form" class="gp-form" action="/process-payment" method="POST">
+
+                    <form id="token-form" class="gp-form" style="max-width: 600px; margin: 0 auto;">
+                        <!-- Test Card Helper -->
+                        <div class="gp-form-group" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label for="test-card-select" class="gp-label" style="margin-bottom: 0;">Test Card for Sandbox:</label>
+                                <a href="https://developer.globalpayments.com/resources/test-cards#network-tokens---css"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="test-cards-link"
+                                   style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #0066cc; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500; transition: background 0.2s ease;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                        <polyline points="15 3 21 3 21 9"/>
+                                        <line x1="10" y1="14" x2="21" y2="3"/>
+                                    </svg>
+                                    Network Token Test Cards
+                                </a>
+                            </div>
+                            <select id="test-card-select" class="gp-select">
+                                <option value="">Select a test card...</option>
+                                <option value="visa-nt">Visa (Network Token) - 4622943123052970</option>
+                                <option value="visa">Visa - 4263970000005262</option>
+                                <option value="mastercard">MasterCard - 5425230000004415</option>
+                            </select>
+                            <small style="color: #6c757d; font-size: 12px; margin-top: 4px; display: block;">
+                                Select a test card to auto-fill. The Visa Network Token card is recommended for testing.
+                            </small>
+                        </div>
+
+                        <!-- Test Card Data Display -->
+                        <div id="test-card-data" class="gp-hidden" style="background: #e8f4fd; color: #0c5460; border: 1px solid #bee5eb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <strong id="test-card-status"></strong>
+                                    <div id="test-card-details" style="font-family: monospace; margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-size: 14px;"></div>
+                                </div>
+                                <button type="button" onclick="hideTestCardData()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #0c5460; padding: 0; margin-left: 16px;">&times;</button>
+                            </div>
+                        </div>
+
+                        <div class="gp-form-group">
+                            <label class="gp-label">Card Information:</label>
+                            <div id="credit-card-form"></div>
+                        </div>
+                    </form>
+
+                    <div id="token-result" style="display: none; margin-top: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                        <div id="token-result-message" class="gp-alert"></div>
+                        <div id="token-result-details" style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 12px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process Payment Tab -->
+            <div class="gp-tab-content" id="process-payment">
+                <div class="gp-card">
+                    <div class="gp-card-header" style="text-align: center;">
+                        <h2 class="gp-card-title">Process Payment</h2>
+                        <p class="gp-card-description">
+                            Charge a saved network token. The payment is processed using the PMT_ID with network token routing.
+                        </p>
+                    </div>
+
+                    <form id="payment-form" class="gp-form" style="max-width: 600px; margin: 0 auto;">
+                        <div class="gp-form-group">
+                            <label for="saved-token-select" class="gp-label">Saved Network Token:</label>
+                            <select id="saved-token-select" class="gp-select" required>
+                                <option value="">Select a saved token...</option>
+                            </select>
+                            <small id="no-tokens-message" style="color: #6c757d; font-size: 12px; margin-top: 4px; display: none;">
+                                No tokens saved yet. Create one in the "Create Network Token" tab first.
+                            </small>
+                        </div>
+
                         <div class="gp-form-group">
                             <label for="amount" class="gp-label">Amount ($):</label>
                             <input type="number" id="amount" name="amount" class="gp-input" min="0.01" step="0.01" value="10.00" required>
                         </div>
-                        
-                        <div class="gp-form-group">
-                            <label for="billing_zip" class="gp-label">Billing Zip Code:</label>
-                            <input type="text" id="billing_zip" name="billing_zip" class="gp-input" placeholder="12345" required>
-                        </div>
 
-                        <div class="gp-form-group">
-                            <label class="gp-label">Credit Card Information:</label>
-                            <div id="credit-card"></div>
-                        </div>
-
-                        <button type="submit" class="gp-button gp-button-primary gp-button-full">
+                        <button type="submit" class="gp-button gp-button-primary gp-button-full" id="pay-button" disabled>
                             Process Payment
                         </button>
                     </form>
-                </div>
-            </div>
 
-            <!-- Tokenization Tab -->
-            <div class="gp-tab-content" id="tokenization">
-                <div class="gp-card">
-                    <div class="gp-card-header">
-                        <h2 class="gp-card-title">Card Tokenization</h2>
-                        <p class="gp-card-description">
-                            Securely tokenize payment methods for future use without storing sensitive card data.
-                        </p>
+                    <div id="payment-result" style="display: none; margin-top: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                        <div id="payment-result-message" class="gp-alert"></div>
+                        <div id="payment-result-details" style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 12px;"></div>
                     </div>
-                    
-                    <div class="gp-alert gp-alert-info">
-                        <strong>Info:</strong> Tokens can be stored securely and used for future transactions without handling raw card data.
-                    </div>
-
-                    <form id="tokenization-form" class="gp-form">
-                        <div class="gp-form-group">
-                            <label class="gp-label">Card Information for Tokenization:</label>
-                            <div id="credit-card-token"></div>
-                        </div>
-
-                        <button type="submit" class="gp-button gp-button-primary gp-button-full">
-                            Generate Token
-                        </button>
-                    </form>
-
-                    <div id="token-result" class="gp-hidden">
-                        <h3 class="gp-card-title gp-mt-lg">Generated Token:</h3>
-                        <div class="gp-code-block" id="token-display"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Webhooks Tab -->
-            <div class="gp-tab-content" id="webhooks">
-                <div class="gp-card">
-                    <div class="gp-card-header">
-                        <h2 class="gp-card-title">Webhook Integration</h2>
-                        <p class="gp-card-description">
-                            Configure and test webhook endpoints for real-time payment notifications.
-                        </p>
-                    </div>
-                    
-                    <div class="gp-code-block">
-// Example webhook handler
-app.post('/webhook', (req, res) => {
-    const signature = req.headers['x-gp-signature'];
-    const payload = req.body;
-    
-    // Verify webhook signature
-    if (verifySignature(payload, signature)) {
-        handlePaymentEvent(payload);
-        res.status(200).send('OK');
-    } else {
-        res.status(400).send('Invalid signature');
-    }
-});
-                    </div>
-
-                    <div class="gp-alert gp-alert-warning">
-                        <strong>Security:</strong> Always verify webhook signatures to ensure requests are from Global Payments.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recurring Payments Tab -->
-            <div class="gp-tab-content" id="recurring">
-                <div class="gp-card">
-                    <div class="gp-card-header">
-                        <h2 class="gp-card-title">Recurring Payments</h2>
-                        <p class="gp-card-description">
-                            Set up subscription billing and recurring payment schedules.
-                        </p>
-                    </div>
-                    
-                    <form id="recurring-form" class="gp-form">
-                        <div class="gp-form-row">
-                            <div class="gp-form-group">
-                                <label for="subscription-amount" class="gp-label">Monthly Amount ($):</label>
-                                <input type="number" id="subscription-amount" name="subscription-amount" class="gp-input" min="1.00" step="0.01" value="29.99" required>
-                            </div>
-                            
-                            <div class="gp-form-group">
-                                <label for="billing-cycle" class="gp-label">Billing Cycle:</label>
-                                <select id="billing-cycle" name="billing-cycle" class="gp-select" required>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="quarterly">Quarterly</option>
-                                    <option value="annually">Annually</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="gp-form-group">
-                            <label class="gp-label">Payment Method:</label>
-                            <div id="credit-card-recurring"></div>
-                        </div>
-
-                        <button type="submit" class="gp-button gp-button-primary gp-button-full">
-                            Set Up Subscription
-                        </button>
-                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Footer -->
-    <!-- 
-        DEVELOPER NOTE: Update the following footer information to match your business:
-        - Company name and copyright year
-        - Update all links to point to your actual Terms of Service, Privacy Policy, and Refund Policy pages
-        - Refund Policy link is typically required by payment processor underwriting in addition to Terms and Privacy
-        - Ensure all linked policies are accessible and up-to-date before going live
-    -->
     <footer class="gp-footer">
         <div class="gp-container">
             <div class="gp-footer-content">
                 <div class="gp-footer-section">
                     <p class="gp-footer-copyright">
-                        © 2024- Your Company Name. All rights reserved.
+                        &copy; 2025 Global Payments Network Tokenization Demo. All rights reserved.
                     </p>
                 </div>
                 <div class="gp-footer-section">
@@ -208,6 +187,253 @@ app.post('/webhook', (req, res) => {
         </div>
     </footer>
 
-    <script src="https://globalpayments-samples.github.io/js/script.js"></script>
+    <script>
+        let cardForm;
+        let accessToken;
+
+        const testCards = {
+            'visa-nt': { number: '4622943123052970', cvv: '999', expiry: '12/2025' },
+            'visa': { number: '4263970000005262', cvv: '123', expiry: '12/2025' },
+            'mastercard': { number: '5425230000004415', cvv: '123', expiry: '12/2025' }
+        };
+
+        // Tab switching
+        document.querySelectorAll('.gp-tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.gp-tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.gp-tab-content').forEach(c => c.classList.remove('active'));
+                button.classList.add('active');
+                document.getElementById(button.dataset.tab).classList.add('active');
+
+                if (button.dataset.tab === 'process-payment') {
+                    loadSavedTokens();
+                }
+            });
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('config');
+                const data = await response.json();
+
+                if (!data.success || !data.data?.accessToken) {
+                    throw new Error(data.message || 'Failed to get access token');
+                }
+
+                accessToken = data.data.accessToken;
+
+                GlobalPayments.configure({
+                    accessToken: accessToken,
+                    apiVersion: '2021-03-22',
+                    env: 'sandbox'
+                });
+
+                initializeCardForm();
+
+                document.getElementById('test-card-select').addEventListener('change', handleTestCardSelect);
+                document.getElementById('payment-form').addEventListener('submit', handlePayment);
+                document.getElementById('saved-token-select').addEventListener('change', function() {
+                    document.getElementById('pay-button').disabled = !this.value;
+                });
+
+            } catch (error) {
+                showResult('token-result', 'token-result-message', 'error', 'Failed to initialize: ' + error.message);
+                document.getElementById('token-result').style.display = 'block';
+            }
+        });
+
+        function initializeCardForm() {
+            cardForm = GlobalPayments.creditCard.form('#credit-card-form', {
+                style: 'gp-default',
+                amount: '0.00',
+                enableSavedPaymentMethods: false
+            });
+
+            cardForm.ready(() => {
+                if (window.selectedTestCard) {
+                    applyTestCard(window.selectedTestCard);
+                }
+            });
+
+            cardForm.on('token-success', async function(response) {
+                try {
+                    const result = await fetch('create-network-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ payment_reference: response.paymentReference })
+                    });
+
+                    const resultData = await result.json();
+
+                    if (resultData.success) {
+                        showResult('token-result', 'token-result-message', 'success', 'Network token created successfully!');
+                        showTokenDetails(resultData.data);
+                    } else {
+                        showResult('token-result', 'token-result-message', 'error', resultData.message || 'Failed to create network token');
+                        document.getElementById('token-result-details').style.display = 'none';
+                    }
+                } catch (error) {
+                    showResult('token-result', 'token-result-message', 'error', 'Error: ' + error.message);
+                    document.getElementById('token-result-details').style.display = 'none';
+                }
+
+                document.getElementById('token-result').style.display = 'block';
+            });
+
+            cardForm.on('token-error', function(response) {
+                showResult('token-result', 'token-result-message', 'error',
+                    'Card validation failed: ' + (response.reasons?.[0]?.message || 'Invalid card details'));
+                document.getElementById('token-result-details').style.display = 'none';
+                document.getElementById('token-result').style.display = 'block';
+            });
+        }
+
+        function showTokenDetails(data) {
+            const details = document.getElementById('token-result-details');
+            details.innerHTML = `
+                <div class="result-field"><span class="result-label">PMT ID</span><span class="result-value">${data.id || 'N/A'}</span></div>
+                <div class="result-field"><span class="result-label">Card Brand</span><span class="result-value">${data.brand || 'N/A'}</span></div>
+                <div class="result-field"><span class="result-label">Card Last 4</span><span class="result-value">${data.masked_card || 'N/A'}</span></div>
+                <div class="result-field"><span class="result-label">Usage Mode</span><span class="result-value">${data.usage_mode || 'N/A'}</span></div>
+                <div class="result-field"><span class="result-label">Status</span><span class="result-value">${data.status || 'N/A'}</span></div>
+            `;
+            details.style.display = 'block';
+        }
+
+        async function loadSavedTokens() {
+            try {
+                const response = await fetch('list-tokens');
+                const data = await response.json();
+
+                const select = document.getElementById('saved-token-select');
+                const noTokensMsg = document.getElementById('no-tokens-message');
+
+                select.innerHTML = '<option value="">Select a saved token...</option>';
+
+                if (data.success && data.data.length > 0) {
+                    data.data.forEach(token => {
+                        const option = document.createElement('option');
+                        option.value = token.id;
+                        option.textContent = `${token.brand || 'Card'} ****${token.masked_card || '????'} (${token.id.substring(0, 20)}...)`;
+                        select.appendChild(option);
+                    });
+                    noTokensMsg.style.display = 'none';
+                } else {
+                    noTokensMsg.style.display = 'block';
+                }
+
+                document.getElementById('pay-button').disabled = true;
+            } catch (error) {
+                document.getElementById('no-tokens-message').textContent = 'Error loading tokens: ' + error.message;
+                document.getElementById('no-tokens-message').style.display = 'block';
+            }
+        }
+
+        async function handlePayment(e) {
+            e.preventDefault();
+
+            const pmtId = document.getElementById('saved-token-select').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            if (!pmtId || amount <= 0) return;
+
+            const payButton = document.getElementById('pay-button');
+            payButton.disabled = true;
+            payButton.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('process-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pmt_id: pmtId, amount: amount, currency: 'USD' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResult('payment-result', 'payment-result-message', 'success', 'Payment processed successfully!');
+                    const details = document.getElementById('payment-result-details');
+                    details.innerHTML = `
+                        <div class="result-field"><span class="result-label">Transaction ID</span><span class="result-value">${data.data.transactionId}</span></div>
+                        <div class="result-field"><span class="result-label">Status</span><span class="result-value">${data.data.status}</span></div>
+                        <div class="result-field"><span class="result-label">Amount</span><span class="result-value">$${data.data.amount.toFixed(2)} ${data.data.currency}</span></div>
+                        <div class="result-field"><span class="result-label">Auth Code</span><span class="result-value">${data.data.authCode || 'N/A'}</span></div>
+                        <div class="result-field"><span class="result-label">Token Usage Mode</span><span class="result-value">${data.data.tokenUsageMode || 'N/A'}</span></div>
+                    `;
+                    details.style.display = 'block';
+                } else {
+                    showResult('payment-result', 'payment-result-message', 'error', data.message || 'Payment failed');
+                    document.getElementById('payment-result-details').style.display = 'none';
+                }
+            } catch (error) {
+                showResult('payment-result', 'payment-result-message', 'error', 'Error: ' + error.message);
+                document.getElementById('payment-result-details').style.display = 'none';
+            }
+
+            document.getElementById('payment-result').style.display = 'block';
+            payButton.disabled = false;
+            payButton.textContent = 'Process Payment';
+        }
+
+        function showResult(containerId, messageId, type, message) {
+            const container = document.getElementById(containerId);
+            const msgEl = document.getElementById(messageId);
+            msgEl.className = 'gp-alert gp-alert-' + (type === 'success' ? 'success' : 'error');
+            msgEl.innerHTML = '<strong>' + (type === 'success' ? 'Success!' : 'Error!') + '</strong> ' + message;
+        }
+
+        function handleTestCardSelect(event) {
+            const selected = event.target.value;
+            if (!selected || !cardForm) return;
+
+            const cardData = testCards[selected];
+            if (cardData) {
+                resetForm();
+                window.selectedTestCard = cardData;
+                showTestCardData(cardData, true);
+            }
+            event.target.value = '';
+        }
+
+        function resetForm() {
+            try {
+                window.selectedTestCard = null;
+                document.querySelectorAll('#credit-card-form>*').forEach(el => el.parentElement.removeChild(el));
+                cardForm.dispose();
+                initializeCardForm();
+            } catch (error) {
+                console.warn('Form reset failed:', error);
+            }
+        }
+
+        function applyTestCard(cardData) {
+            try {
+                cardForm.frames["card-number"].setValue(cardData.number);
+                cardForm.frames["card-expiration"].setValue(cardData.expiry.replace('/', ''));
+                cardForm.frames["card-cvv"].setValue(cardData.cvv);
+                cardForm.frames["card-holder-name"].setValue('Test User');
+            } catch (error) {
+                console.warn('Auto-fill failed:', error);
+            }
+        }
+
+        function showTestCardData(cardData, autoFilled) {
+            document.getElementById('test-card-status').textContent = autoFilled
+                ? 'Test Card Auto-Filled:' : 'Test Card Data - Enter Manually:';
+            document.getElementById('test-card-details').innerHTML = `
+                <strong>Card Number:</strong> ${cardData.number}<br>
+                <strong>Expiration:</strong> ${cardData.expiry}<br>
+                <strong>CVV:</strong> ${cardData.cvv}<br>
+                <strong>Cardholder:</strong> Test User
+            `;
+            document.getElementById('test-card-data').classList.remove('gp-hidden');
+        }
+
+        function hideTestCardData() {
+            document.getElementById('test-card-data').classList.add('gp-hidden');
+            window.selectedTestCard = null;
+        }
+    </script>
 </body>
 </html>
