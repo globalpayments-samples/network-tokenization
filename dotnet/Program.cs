@@ -290,7 +290,7 @@ public class Program
                     : "USD";
 
                 var accessToken2 = await GetAccessToken();
-                var amountMinor = ((int)(amount * 100)).ToString();
+                var amountMinor = ((int)Math.Round(amount * 100)).ToString();
 
                 var txPayload = new
                 {

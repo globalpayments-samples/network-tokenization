@@ -291,7 +291,7 @@ public class ProcessPaymentServlet extends HttpServlet {
             String currency = jsonRequest.optString("currency", "USD");
 
             String accessToken = getAccessToken(null);
-            long amountMinor = (long) (amount * 100);
+            long amountMinor = Math.round(amount * 100);
 
             JSONObject pm = new JSONObject();
             pm.put("entry_mode", "ECOM");

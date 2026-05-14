@@ -17,7 +17,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"crypto/rand"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -251,8 +252,12 @@ func handleCreateNetworkToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := "Failed"
-	if strings.EqualFold(fmt.Sprint(result["action"].(map[string]interface{})["result_code"]), "SUCCESS") {
-		status = "Active"
+	if action, ok := result["action"].(map[string]interface{}); ok {
+		if rc, ok := action["result_code"].(string); ok {
+			if strings.EqualFold(rc, "SUCCESS") {
+				status = "Active"
+			}
+		}
 	}
 
 	tokenData := TokenData{
@@ -327,7 +332,7 @@ func handleProcessPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert amount to minor units (cents)
-	amountMinor := fmt.Sprintf("%d", int(input.Amount*100))
+	amountMinor := fmt.Sprintf("%d", int(math.Round(input.Amount*100)))
 
 	payload := map[string]interface{}{
 		"account_name": "transaction_processing",

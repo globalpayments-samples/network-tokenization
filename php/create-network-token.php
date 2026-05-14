@@ -55,6 +55,12 @@ try {
         ->withCurrency('USD')
         ->execute();
 
+    if (empty($response->token)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'message' => 'Token not returned by gateway']);
+        exit;
+    }
+
     $tokenData = [
         'id' => $response->token ?? '',
         'brand' => $response->cardType ?? '',

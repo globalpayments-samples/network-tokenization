@@ -216,7 +216,7 @@ def process_payment():
 
         access_token = get_access_token()
 
-        amount_minor = str(int(amount * 100))
+        amount_minor = str(round(amount * 100))
 
         payload = {
             'account_name': 'transaction_processing',
