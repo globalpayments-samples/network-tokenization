@@ -167,8 +167,8 @@ app.post('/create-network-token', async (req, res) => {
     // Extract card details
     const tokenData = {
       id: response.token,
-      brand: response.cardBrand || 'Unknown',
-      masked_card: response.maskedNumberLast4 || '',
+      brand: response.cardType || 'Unknown',
+      masked_card: response.cardLast4 || '',
       usage_mode: response.tokenUsageMode || 'USE_NETWORK_TOKEN',
       status: response.responseCode === 'SUCCESS' ? 'Active' : 'Failed',
       created_at: new Date().toISOString()
@@ -254,6 +254,10 @@ app.post('/process-payment', async (req, res) => {
       .execute();
 
     if (response.responseCode === 'SUCCESS') {
+      const tokens = await readTokens();
+      const storedToken = tokens.find(t => t.id === req.body.pmt_id);
+      const tokenUsageMode = storedToken?.usage_mode || response.tokenUsageMode || '';
+
       res.json({
         success: true,
         data: {
@@ -263,7 +267,7 @@ app.post('/process-payment', async (req, res) => {
           currency: currency,
           authCode: response.authorizationCode || '',
           reference: response.referenceNumber || '',
-          tokenUsageMode: response.tokenUsageMode || ''
+          tokenUsageMode
         },
         message: 'Payment processed successfully'
       });

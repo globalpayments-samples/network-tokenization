@@ -64,6 +64,20 @@ try {
         ->execute();
 
     if ($response->responseCode === 'SUCCESS') {
+        $tokenUsageMode = $response->tokenUsageMode ?? '';
+        if (empty($tokenUsageMode)) {
+            $dataFile = __DIR__ . '/data/tokens.json';
+            if (file_exists($dataFile)) {
+                $storedTokens = json_decode(file_get_contents($dataFile), true) ?? [];
+                foreach ($storedTokens as $storedToken) {
+                    if (($storedToken['id'] ?? '') === $input['pmt_id']) {
+                        $tokenUsageMode = $storedToken['usage_mode'] ?? '';
+                        break;
+                    }
+                }
+            }
+        }
+
         echo json_encode([
             'success' => true,
             'data' => [
@@ -73,7 +87,7 @@ try {
                 'currency' => $currency,
                 'authCode' => $response->authorizationCode ?? '',
                 'reference' => $response->referenceNumber ?? '',
-                'tokenUsageMode' => $response->tokenUsageMode ?? ''
+                'tokenUsageMode' => $tokenUsageMode
             ],
             'message' => 'Payment processed successfully'
         ]);
