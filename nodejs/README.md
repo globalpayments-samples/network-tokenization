@@ -1,112 +1,295 @@
-# Node.js Card Payment Example
+# Network Tokenization — Node.js
 
-This example demonstrates card payment processing using Express.js and the Global Payments SDK.
+Node.js/Express implementation of the network tokenization sample using the Global Payments Node.js SDK.
+
+Part of the [network-tokenization](../) multi-language project.
+
+---
 
 ## Requirements
 
-- Node.js 14.x or later
-- npm (Node Package Manager)
-- Global Payments account and API credentials
+- Node.js 18+
+- npm
+- GP API credentials (`GP_API_APP_ID`, `GP_API_APP_KEY`) with network tokenization enabled
+
+---
 
 ## Project Structure
 
-- `server.js` - Main application file containing server setup and payment processing
-- `index.html` - Client-side payment form
-- `package.json` - Project dependencies and scripts
-- `.env.sample` - Template for environment variables
-- `run.sh` - Convenience script to run the application
+```
+nodejs/
+├── .env.sample         # Environment variable template
+├── package.json        # Dependencies (globalpayments-api ^3.10.6, express)
+├── server.js           # All 4 endpoints in a single Express server
+├── data/
+│   └── tokens.json     # Saved PMT IDs (auto-created)
+├── run.sh              # Install + start server
+├── Dockerfile
+├── .devcontainer/
+└── .codesandbox/
+```
+
+---
 
 ## Setup
 
-1. Clone this repository
-2. Copy `.env.sample` to `.env`
-3. Update `.env` with your Global Payments credentials:
-   ```
-   PUBLIC_API_KEY=pk_test_xxx
-   SECRET_API_KEY=sk_test_xxx
-   ```
-4. Install dependencies:
-   ```bash
-   npm install
-   ```
-5. Run the application:
-   ```bash
-   ./run.sh
-   ```
-   Or manually:
-   ```bash
-   node server.js
-   ```
+```bash
+cp .env.sample .env
+# Edit .env — fill in GP_API_APP_ID and GP_API_APP_KEY
+./run.sh
+```
 
-## Implementation Details
+Open `http://localhost:8000` in your browser.
 
-### Server Setup
-The application uses Express.js to create a web server that:
-- Serves static files
-- Processes payment requests
-- Provides configuration endpoint for client-side SDK
-- Handles JSON and form-encoded requests
+**Manual start:**
 
-### SDK Configuration
-Global Payments SDK configuration using environment variables:
-- Loads credentials from .env file
-- Sets up service URL for API communication
-- Configures developer identification
+```bash
+npm install
+node server.js
+```
 
-### Payment Processing
-Payment processing flow:
-1. Client submits payment token and billing zip
-2. Server creates CreditCardData with token
-3. Creates Address with postal code
-4. Processes $10 USD charge
-5. Returns success/error response
+---
 
-### Error Handling
-Implements comprehensive error handling:
-- Catches and processes API exceptions
-- Differentiates between API and general errors
-- Returns appropriate error messages
+## Environment Variables
 
-## API Endpoints
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GP_API_APP_ID` | Your GP API application ID | `a8b5f800-...` |
+| `GP_API_APP_KEY` | Your GP API application key | `qM31zQFkFh...` |
+| `GP_API_ENVIRONMENT` | `sandbox` or `production` | `sandbox` |
+| `PORT` | Server listen port (optional) | `8000` |
 
-### GET /config
-Returns public API key for client-side SDK initialization.
+Credentials available in the [GP Developer Portal](https://developer.globalpayments.com).
 
-Response:
+---
+
+## SDK Configuration
+
+The `create-network-token` and `process-payment` endpoints configure the SDK before each operation:
+
+```js
+const config = new GpApiConfig();
+config.appId = process.env.GP_API_APP_ID;
+config.appKey = process.env.GP_API_APP_KEY;
+config.environment = process.env.GP_API_ENVIRONMENT === 'production' ? 'production' : 'test';
+config.channel = Channel.CardNotPresent;
+config.country = 'US';
+
+ServicesContainer.configureService(config);
+```
+
+The `/config` endpoint uses a direct fetch to the GP API `/accesstoken` endpoint with `permissions: ['PMT_POST_Create_Single']` to scope the Drop-In UI token.
+
+---
+
+## Endpoints
+
+### `GET /config`
+
+Generates a scoped access token for the Drop-In UI. Uses direct HTTP to request a token with only the `PMT_POST_Create_Single` permission.
+
+**Response**
 ```json
 {
-    "publicApiKey": "pk_test_xxx"
+  "success": true,
+  "data": {
+    "accessToken": "S0BiXG7jfVkBPKlMPIR..."
+  }
 }
 ```
 
-### POST /process-payment
-Processes a payment using the provided token and billing information.
-
-Request Parameters:
-- `payment_token` (string, required) - Token from client-side SDK
-- `billing_zip` (string, required) - Billing postal code
-
-Response (Success):
-```
-Payment successful! Transaction ID: xxx
+**Error**
+```json
+{
+  "success": false,
+  "message": "Error generating access token",
+  "error": "STATUS_CODE: ACTION_NOT_AUTHORIZED"
+}
 ```
 
-Response (Error):
-```
-API Error: [error message]
-```
-or
-```
-Error: [error message]
+---
+
+### `POST /create-network-token`
+
+Converts a single-use Drop-In UI token into a reusable network token using `card.tokenize(true, 'USE_NETWORK_TOKEN')`.
+
+**Request**
+```json
+{
+  "payment_reference": "PMT_single_use_token_from_drop_in"
+}
 ```
 
-## Security Considerations
+```js
+const card = new CreditCardData();
+card.token = req.body.payment_reference;
 
-This example demonstrates basic implementation. For production use, consider:
-- Implementing additional input validation
-- Adding request rate limiting
-- Including security headers
-- Implementing proper logging
-- Adding payment fraud prevention measures
-- Using HTTPS in production
-- Configuring Cross-Origin Resource Sharing (CORS) appropriately
+const response = await card.tokenize(true, 'USE_NETWORK_TOKEN')
+  .withCurrency('USD')
+  .execute();
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "PMT_a1b2c3d4e5f6g7h8",
+    "brand": "VISA",
+    "masked_card": "2970",
+    "usage_mode": "USE_NETWORK_TOKEN",
+    "status": "Active",
+    "created_at": "2025-05-11T14:30:00.000Z"
+  },
+  "message": "Network token created successfully"
+}
+```
+
+**Error**
+```json
+{
+  "success": false,
+  "message": "Failed to create network token",
+  "error": "no token returned"
+}
+```
+
+---
+
+### `GET /list-tokens`
+
+Returns all network tokens saved in `data/tokens.json`.
+
+**Response**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "PMT_a1b2c3d4e5f6g7h8",
+      "brand": "VISA",
+      "masked_card": "2970",
+      "usage_mode": "USE_NETWORK_TOKEN",
+      "status": "Active",
+      "created_at": "2025-05-11T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### `POST /process-payment`
+
+Charges a saved network token using `card.charge().withPaymentMethodUsageMode('USE_NETWORK_TOKEN')`.
+
+**Request**
+```json
+{
+  "pmt_id": "PMT_a1b2c3d4e5f6g7h8",
+  "amount": 10.00,
+  "currency": "USD"
+}
+```
+
+```js
+const card = new CreditCardData();
+card.token = req.body.pmt_id;
+
+const response = await card.charge(amount)
+  .withCurrency(currency)
+  .withPaymentMethodUsageMode('USE_NETWORK_TOKEN')
+  .execute();
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "data": {
+    "transactionId": "TRN_xxxxxxxxxxxx",
+    "status": "CAPTURED",
+    "amount": 10.00,
+    "currency": "USD",
+    "authCode": "123456",
+    "tokenUsageMode": "USE_NETWORK_TOKEN"
+  },
+  "message": "Payment processed successfully"
+}
+```
+
+**Error**
+```json
+{
+  "success": false,
+  "message": "Payment processing failed",
+  "error": "Transaction declined: Insufficient funds"
+}
+```
+
+---
+
+## Flow
+
+```mermaid
+flowchart TD
+    A([Page Load]) --> B[GET /config\nDirect fetch to GP API /accesstoken]
+    B --> C[Drop-In UI renders]
+
+    C --> D([Tab 1: Create Network Token])
+    D --> E[User enters card in hosted fields]
+    E --> F[Drop-In UI emits payment_reference]
+    F --> G[POST /create-network-token]
+    G --> H["card.tokenize(true, 'USE_NETWORK_TOKEN').execute()"]
+    H --> I[GP API /verifications\nstorage_mode: ON_SUCCESS]
+    I --> J[PMT_xxxxx saved to data/tokens.json]
+    J --> K([Token shown in UI])
+
+    C --> L([Tab 2: Process Payment])
+    L --> M[GET /list-tokens → dropdown]
+    M --> N[Select token + enter amount]
+    N --> O[POST /process-payment]
+    O --> P["card.charge().withPaymentMethodUsageMode\n('USE_NETWORK_TOKEN').execute()"]
+    P --> Q[GP API /transactions]
+    Q --> R([Transaction result shown])
+```
+
+---
+
+## Test Cards
+
+Network tokenization requires a specific test card:
+
+| Brand | Number | CVV | Expiry |
+|-------|--------|-----|--------|
+| Visa | 4622 9431 2305 2970 | 999 | 12/25 |
+
+Standard sandbox cards:
+
+| Brand | Number | CVV | Expiry |
+|-------|--------|-----|--------|
+| Visa | 4263 9826 4026 9299 | 123 | Any future |
+| Mastercard | 5425 2334 2424 1200 | 123 | Any future |
+
+---
+
+## Docker
+
+```bash
+docker build -t network-tokenization-nodejs .
+docker run -p 8000:8000 --env-file .env network-tokenization-nodejs
+```
+
+---
+
+## Troubleshooting
+
+**`ACTION_NOT_AUTHORIZED` on startup** — `GP_API_APP_ID` or `GP_API_APP_KEY` is wrong, or network tokenization is not enabled on the account. Verify credentials in the Developer Portal.
+
+**Drop-In UI does not render** — The access token from `/config` has expired (600 s TTL). Reload the page to fetch a fresh token.
+
+**`Failed to create network token`** — Network tokenization may not be enabled on the sandbox account. Contact Global Payments support to confirm `PMT_POST_Create_Single` is available.
+
+**`node: command not found`** — Install Node.js 18+ from [nodejs.org](https://nodejs.org).
+
+**Port already in use** — Set `PORT=8001` in `.env` and restart.

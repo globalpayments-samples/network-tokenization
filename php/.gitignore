@@ -3,6 +3,7 @@ vendor/
 composer.phar
 .env
 *.log
+data/
 .DS_Store
 .idea/
 .vscode/

@@ -2,134 +2,115 @@
 
 declare(strict_types=1);
 
-/**
- * Card Payment Processing Script
- *
- * This script demonstrates card payment processing using the Global Payments SDK.
- * It handles tokenized card data and billing information to process payments
- * securely through the Global Payments API.
- *
- * PHP version 7.4 or higher
- *
- * @category  Payment_Processing
- * @package   GlobalPayments_Sample
- * @author    Global Payments
- * @license   MIT License
- * @link      https://github.com/globalpayments
- */
-
 require_once 'vendor/autoload.php';
 
 use Dotenv\Dotenv;
-use GlobalPayments\Api\Entities\Address;
-use GlobalPayments\Api\Entities\Exceptions\ApiException;
-use GlobalPayments\Api\PaymentMethods\CreditCardData;
-use GlobalPayments\Api\ServiceConfigs\Gateways\PorticoConfig;
+use GlobalPayments\Api\ServiceConfigs\Gateways\GpApiConfig;
 use GlobalPayments\Api\ServicesContainer;
+use GlobalPayments\Api\PaymentMethods\CreditCardData;
+use GlobalPayments\Api\Entities\Enums\Environment;
+use GlobalPayments\Api\Entities\Enums\Channel;
 
-ini_set('display_errors', '0');
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-/**
- * Configure the SDK
- *
- * Sets up the Global Payments SDK with necessary credentials and settings
- * loaded from environment variables.
- *
- * @return void
- */
-function configureSdk(): void
-{
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit;
+}
+
+try {
     $dotenv = Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 
-    $config = new PorticoConfig();
-    $config->secretApiKey = $_ENV['SECRET_API_KEY'];
-    $config->developerId = '000000';
-    $config->versionNumber = '0000';
-    $config->serviceUrl = 'https://cert.api2.heartlandportico.com';
-    
-    ServicesContainer::configureService($config);
-}
+    $input = json_decode(file_get_contents('php://input'), true);
 
-/**
- * Sanitize postal code by removing invalid characters
- *
- * @param string|null $postalCode The postal code to sanitize
- *
- * @return string Sanitized postal code containing only alphanumeric
- *                characters and hyphens, limited to 10 characters
- */
-function sanitizePostalCode(?string $postalCode): string
-{
-    if ($postalCode === null) {
-        return '';
+    if (empty($input['pmt_id'])) {
+        throw new Exception('Missing pmt_id');
     }
-    
-    $sanitized = preg_replace('/[^a-zA-Z0-9-]/', '', $postalCode);
-    return substr($sanitized, 0, 10);
-}
 
-// Initialize SDK configuration
-configureSdk();
-
-try {
-    // Validate required fields
-    if (!isset($_POST['payment_token'], $_POST['billing_zip'], $_POST['amount'])) {
-        throw new ApiException('Missing required fields');
-    }
-    
-    // Parse and validate amount
-    $amount = floatval($_POST['amount']);
+    $amount = floatval($input['amount'] ?? 0);
     if ($amount <= 0) {
-        throw new ApiException('Invalid amount');
+        throw new Exception('Invalid amount');
     }
 
-    // Initialize payment data using tokenized card information
+    $currency = $input['currency'] ?? 'USD';
+
+    $config = new GpApiConfig();
+    $config->appId = $_ENV['GP_API_APP_ID'] ?? '';
+    $config->appKey = $_ENV['GP_API_APP_KEY'] ?? '';
+    $config->environment = ($_ENV['GP_API_ENVIRONMENT'] ?? 'sandbox') === 'production'
+        ? Environment::PRODUCTION
+        : Environment::TEST;
+    $config->channel = Channel::CardNotPresent;
+    $config->country = 'US';
+
+    ServicesContainer::configureService($config);
+
     $card = new CreditCardData();
-    $card->token = $_POST['payment_token'];
+    $card->token = $input['pmt_id'];
 
-    // Create billing address for AVS verification
-    $address = new Address();
-    $address->postalCode = sanitizePostalCode($_POST['billing_zip']);
-
-    // Process the payment transaction with specified amount
     $response = $card->charge($amount)
-        ->withAllowDuplicates(true)
-        ->withCurrency('USD')
-        ->withAddress($address)
+        ->withCurrency($currency)
+        ->withPaymentMethodUsageMode('USE_NETWORK_TOKEN')
         ->execute();
-    
-    // Verify transaction was successful
-    if ($response->responseCode !== '00') {
-        http_response_code(400);
+
+    if ($response->responseCode === 'SUCCESS') {
+        $tokenUsageMode = $response->tokenUsageMode ?? '';
+        if (empty($tokenUsageMode)) {
+            $dataFile = __DIR__ . '/data/tokens.json';
+            if (file_exists($dataFile)) {
+                $storedTokens = json_decode(file_get_contents($dataFile), true) ?? [];
+                foreach ($storedTokens as $storedToken) {
+                    if (($storedToken['id'] ?? '') === $input['pmt_id']) {
+                        $tokenUsageMode = $storedToken['usage_mode'] ?? '';
+                        break;
+                    }
+                }
+            }
+        }
+
         echo json_encode([
-            'success' => false,
-            'message' => 'Payment processing failed',
-            'error' => [
-                'code' => 'PAYMENT_DECLINED',
-                'details' => $response->responseMessage
-            ]
+            'success' => true,
+            'data' => [
+                'transactionId' => $response->transactionId,
+                'status' => $response->responseMessage,
+                'amount' => $amount,
+                'currency' => $currency,
+                'authCode' => $response->authorizationCode ?? '',
+                'reference' => $response->referenceNumber ?? '',
+                'tokenUsageMode' => $tokenUsageMode
+            ],
+            'message' => 'Payment processed successfully'
         ]);
-        exit;
+    } else {
+        throw new Exception('Transaction declined: ' . ($response->responseMessage ?? 'Unknown error'));
     }
 
-    // Return success response with transaction ID
-    echo json_encode([
-        'success' => true,
-        'message' => 'Payment successful! Transaction ID: ' . $response->transactionId,
-        'data' => [
-            'transactionId' => $response->transactionId
-        ]
-    ]);
-} catch (ApiException $e) {
-    // Handle payment processing errors
+} catch (\GlobalPayments\Api\Entities\Exceptions\GatewayException $e) {
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => 'Payment processing failed',
-        'error' => [
-            'code' => 'API_ERROR',
-            'details' => $e->getMessage()
-        ]
+        'message' => 'Gateway error: ' . $e->getMessage()
+    ]);
+} catch (\GlobalPayments\Api\Entities\Exceptions\ApiException $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'API error: ' . $e->getMessage()
+    ]);
+} catch (Exception $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
     ]);
 }

@@ -1,148 +1,286 @@
 """
-Global Payments SDK Template - Python Flask
+Global Payments Network Tokenization - Python Flask
 
-This Flask application provides a starting template for Global Payments SDK integration.
-Customize the endpoints and logic below for your specific use case.
+Uses direct GP-API HTTP calls (no SDK dependency).
+
+Endpoints:
+- GET  /config:               Generate Drop-In UI access token
+- POST /create-network-token: Create network token from single-use Drop-In UI token
+- GET  /list-tokens:          List saved network tokens
+- POST /process-payment:      Process payment using saved network token
 """
 
 import os
-import re
+import json
+import hashlib
+import secrets
+import urllib.request
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from globalpayments.api import PorticoConfig, ServicesContainer
-from globalpayments.api.payment_methods import CreditCardData
-from globalpayments.api.entities import Address
-from globalpayments.api.entities.exceptions import ApiException
 
-# Load environment variables
 load_dotenv()
 
-# Initialize application
 app = Flask(__name__, static_folder='.')
 
-def configure_sdk():
-    """
-    Configure the Global Payments SDK with necessary credentials and settings.
-    Customize these settings for your environment.
-    """
-    config = PorticoConfig()
-    config.secret_api_key = os.getenv('SECRET_API_KEY')
-    config.service_url = 'https://cert.api2.heartlandportico.com'  # Use production URL for live transactions
-    config.developer_id = '000000'  # Your developer ID
-    config.version_number = '0000'  # Your version number
-    
-    ServicesContainer.configure(config)
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
 
-# Configure SDK on startup
-configure_sdk()
 
-def sanitize_postal_code(postal_code: str) -> str:
-    """
-    Utility function to sanitize postal code.
-    Customize validation logic as needed for your use case.
-    """
-    sanitized = re.sub(r'[^a-zA-Z0-9-]', '', postal_code or '')
-    return sanitized[:10]
+def api_base_url():
+    if os.getenv('GP_API_ENVIRONMENT') == 'production':
+        return 'https://apis.globalpay.com/ucp'
+    return 'https://apis.sandbox.globalpay.com/ucp'
+
+
+def generate_nonce():
+    return secrets.token_hex(16)
+
+
+def hash_secret(nonce, app_key):
+    return hashlib.sha512((nonce + app_key).encode('utf-8')).hexdigest()
+
+
+def get_access_token(permissions=None):
+    nonce = generate_nonce()
+    secret = hash_secret(nonce, os.getenv('GP_API_APP_KEY', ''))
+
+    payload = {
+        'app_id': os.getenv('GP_API_APP_ID'),
+        'nonce': nonce,
+        'secret': secret,
+        'grant_type': 'client_credentials',
+        'seconds_to_expire': 600,
+    }
+    if permissions:
+        payload['permissions'] = permissions
+
+    body = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(
+        api_base_url() + '/accesstoken',
+        data=body,
+        headers={
+            'Content-Type': 'application/json',
+            'X-GP-Version': '2021-03-22',
+        },
+        method='POST',
+    )
+
+    with urllib.request.urlopen(req) as resp:
+        result = json.loads(resp.read().decode('utf-8'))
+
+    token = result.get('token')
+    if not token:
+        desc = result.get('error_description', 'Failed to get access token')
+        raise Exception(desc)
+    return token
+
+
+def read_tokens():
+    try:
+        if not os.path.exists(TOKENS_FILE):
+            return []
+        with open(TOKENS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def write_tokens(tokens):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(TOKENS_FILE, 'w') as f:
+        json.dump(tokens, f, indent=2)
+
 
 @app.route('/')
 def index():
-    """Serve the main HTML page."""
     return app.send_static_file('index.html')
 
-@app.route('/config')
+
+@app.route('/config', methods=['GET'])
 def get_config():
-    """
-    Config endpoint - provides public API key for client-side use.
-    Customize response data as needed.
-    """
-    return jsonify({
-        'success': True,
-        'data': {
-            'publicApiKey': os.getenv('PUBLIC_API_KEY')
-            # Add other configuration data as needed
-        }
-    })
-
-@app.route('/process-payment', methods=['POST'])
-def process_payment():
-    """
-    Example payment processing endpoint.
-    Customize this endpoint for your specific payment flow.
-    """
     try:
-        # TODO: Add your payment processing logic here
-        # Example implementation for basic charge:
-        
-        if 'payment_token' not in request.form:
-            raise ApiException('Payment token is required')
+        token = get_access_token(['PMT_POST_Create_Single'])
+        return jsonify({'success': True, 'data': {'accessToken': token}})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
 
-        card = CreditCardData()
-        card.token = request.form['payment_token']
 
-        # Customize amount and other parameters as needed
-        amount = float(request.form.get('amount', 10.00))
+@app.route('/create-network-token', methods=['POST'])
+def create_network_token():
+    try:
+        data = request.get_json()
+        if not data or not data.get('payment_reference'):
+            raise Exception('Missing payment_reference')
 
-        # Add billing address if needed
-        if 'billing_zip' in request.form:
-            address = Address()
-            address.postal_code = sanitize_postal_code(request.form['billing_zip'])
-            
-            response = card.charge(amount)\
-                .with_allow_duplicates(True)\
-                .with_currency('USD')\
-                .with_address(address)\
-                .execute()
-        else:
-            # Process without address
-            response = card.charge(amount)\
-                .with_allow_duplicates(True)\
-                .with_currency('USD')\
-                .execute()
+        access_token = get_access_token()
+
+        reference = generate_nonce()
+        payload = {
+            'account_name': 'transaction_processing',
+            'channel': 'CNP',
+            'reference': reference,
+            'currency': 'USD',
+            'country': 'US',
+            'payment_method': {
+                'entry_mode': 'ECOM',
+                'id': data['payment_reference'],
+                'storage_mode': 'ON_SUCCESS',
+            },
+        }
+
+        body = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            api_base_url() + '/verifications',
+            data=body,
+            headers={
+                'Content-Type': 'application/json',
+                'X-GP-Version': '2021-03-22',
+                'Authorization': 'Bearer ' + access_token,
+            },
+            method='POST',
+        )
+
+        try:
+            with urllib.request.urlopen(req) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+                status_code = resp.status
+        except urllib.error.HTTPError as e:
+            err_body = json.loads(e.read().decode('utf-8'))
+            msg = 'Failed to create network token'
+            details = err_body.get('details', [])
+            if details:
+                msg = details[0].get('description', msg)
+            return jsonify({'success': False, 'message': msg}), 400
+
+        pmt_id = ''
+        brand = 'Unknown'
+        masked_card = ''
+
+        pm = result.get('payment_method', {})
+        pmt_id = pm.get('id', '')
+        card = pm.get('card', {})
+        brand = card.get('brand', 'Unknown')
+        masked_card = card.get('masked_number_last4', '')
+
+        if not pmt_id:
+            return jsonify({'success': False, 'message': 'Failed to create network token: no token returned'}), 400
+
+        action = result.get('action', {})
+        status = 'Active' if str(action.get('result_code', '')).upper() == 'SUCCESS' else 'Failed'
+
+        token_data = {
+            'id': pmt_id,
+            'brand': brand,
+            'masked_card': masked_card,
+            'usage_mode': 'USE_NETWORK_TOKEN',
+            'status': status,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+        }
+
+        tokens = read_tokens()
+        tokens.append(token_data)
+        write_tokens(tokens)
 
         return jsonify({
             'success': True,
-            'message': 'Payment processed successfully',
-            'data': {'transactionId': response.transaction_id}
+            'data': token_data,
+            'message': 'Network token created successfully',
         })
 
-    except ApiException as e:
-        return jsonify({
-            'success': False,
-            'message': 'Payment processing failed',
-            'error': str(e)
-        }), 400
     except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+
+@app.route('/list-tokens', methods=['GET'])
+def list_tokens():
+    try:
+        tokens = read_tokens()
+        return jsonify({'success': True, 'data': tokens})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+
+@app.route('/process-payment', methods=['POST'])
+def process_payment():
+    try:
+        data = request.get_json()
+        if not data or not data.get('pmt_id'):
+            raise Exception('Missing pmt_id')
+
+        amount = float(data.get('amount', 0))
+        if amount <= 0:
+            raise Exception('Invalid amount')
+
+        currency = data.get('currency', 'USD')
+
+        access_token = get_access_token()
+
+        amount_minor = str(round(amount * 100))
+
+        payload = {
+            'account_name': 'transaction_processing',
+            'type': 'SALE',
+            'channel': 'CNP',
+            'capture_mode': 'AUTO',
+            'amount': amount_minor,
+            'currency': currency,
+            'country': 'US',
+            'reference': generate_nonce(),
+            'payment_method': {
+                'entry_mode': 'ECOM',
+                'id': data['pmt_id'],
+                'usage_mode': 'USE_NETWORK_TOKEN',
+            },
+        }
+
+        body = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            api_base_url() + '/transactions',
+            data=body,
+            headers={
+                'Content-Type': 'application/json',
+                'X-GP-Version': '2021-03-22',
+                'Authorization': 'Bearer ' + access_token,
+            },
+            method='POST',
+        )
+
+        try:
+            with urllib.request.urlopen(req) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+        except urllib.error.HTTPError as e:
+            err_body = json.loads(e.read().decode('utf-8'))
+            msg = 'Transaction failed'
+            details = err_body.get('details', [])
+            if details:
+                msg = details[0].get('description', msg)
+            return jsonify({'success': False, 'message': msg}), 400
+
+        txn_id = result.get('id', '')
+        action = result.get('action', {})
+        status = action.get('result_code', result.get('status', ''))
+        auth_code = result.get('payment_method', {}).get('card', {}).get('authcode', '')
+
         return jsonify({
-            'success': False,
-            'message': 'Payment processing failed',
-            'error': str(e)
-        }), 500
+            'success': True,
+            'data': {
+                'transactionId': txn_id,
+                'status': status,
+                'amount': amount,
+                'currency': currency,
+                'authCode': auth_code,
+                'tokenUsageMode': 'USE_NETWORK_TOKEN',
+            },
+            'message': 'Payment processed successfully',
+        })
 
-# Add your custom endpoints here
-# Examples:
-# @app.route('/authorize', methods=['POST'])
-# def authorize_payment():
-#     # Authorization only logic
-#     pass
-#
-# @app.route('/capture', methods=['POST'])  
-# def capture_payment():
-#     # Capture authorized payment logic
-#     pass
-#
-# @app.route('/refund', methods=['POST'])
-# def refund_payment():
-#     # Process refund logic
-#     pass
-#
-# @app.route('/transaction/<transaction_id>')
-# def get_transaction(transaction_id):
-#     # Get transaction details logic
-#     pass
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
 
-# Start the server if this file is run directly
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
-    print(f"Server running at http://localhost:{port}")
-    print("Customize this template for your use case!")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    print(f'✅ Server running at http://localhost:{port}')
+    print(f'Environment: {os.getenv("GP_API_ENVIRONMENT", "sandbox")}')
+    app.run(host='0.0.0.0', port=port)
