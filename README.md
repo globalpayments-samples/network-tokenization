@@ -40,7 +40,7 @@ Open `http://localhost:8000` in your browser.
 
 ```bash
 # PHP
-cd php && composer install && php -S 0.0.0.0:8000
+cd php && ./run.sh
 
 # Node.js
 cd nodejs && npm install && node server.js
