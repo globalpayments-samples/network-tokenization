@@ -8,7 +8,7 @@ Part of the [network-tokenization](../) multi-language project.
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.2.35+, 8.3.36+, 8.4.27+, or 8.5.12+ for the web server
 - Composer
 - GP API credentials (`GP_API_APP_ID`, `GP_API_APP_KEY`) with network tokenization enabled
 
@@ -48,7 +48,7 @@ Open `http://localhost:8000` in your browser.
 
 ```bash
 composer install
-php -S 0.0.0.0:8000
+./run.sh
 ```
 
 ---
