@@ -191,10 +191,13 @@
         let cardForm;
         let accessToken;
 
+        // Test cards need an expiry date in the future, otherwise the hosted fields reject them
+        const testCardExpiry = '12/' + (new Date().getFullYear() + 3);
+
         const testCards = {
-            'visa-nt': { number: '4622943123052970', cvv: '999', expiry: '12/2025' },
-            'visa': { number: '4263970000005262', cvv: '123', expiry: '12/2025' },
-            'mastercard': { number: '5425230000004415', cvv: '123', expiry: '12/2025' }
+            'visa-nt': { number: '4622943123052970', cvv: '999', expiry: '12/2025' }, // GP only lists this card with 12/25
+            'visa': { number: '4263970000005262', cvv: '123', expiry: testCardExpiry },
+            'mastercard': { number: '5425230000004415', cvv: '123', expiry: testCardExpiry }
         };
 
         // Tab switching
