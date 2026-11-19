@@ -8,7 +8,7 @@ Part of the [network-tokenization](../) multi-language project.
 
 ## Requirements
 
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - GP API credentials (`GP_API_APP_ID`, `GP_API_APP_KEY`) with network tokenization enabled
 
 ---
@@ -313,6 +313,6 @@ docker run -p 8000:8000 --env-file .env network-tokenization-dotnet
 
 **`Failed to create network token`** — Network tokenization may not be enabled on the sandbox account. Contact Global Payments support.
 
-**`dotnet: command not found`** — Install the .NET 9.0 SDK from [dot.net](https://dot.net).
+**`dotnet: command not found`** — Install the .NET 10.0 SDK from [dot.net](https://dot.net).
 
 **Port already in use** — Set `PORT=8001` in `.env` and restart.
