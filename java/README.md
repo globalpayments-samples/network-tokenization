@@ -8,7 +8,7 @@ Part of the [network-tokenization](../) multi-language project.
 
 ## Requirements
 
-- Java 17+
+- Java 21+
 - Maven 3.6+
 - GP API credentials (`GP_API_APP_ID`, `GP_API_APP_KEY`) with network tokenization enabled
 
