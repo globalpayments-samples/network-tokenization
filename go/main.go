@@ -14,6 +14,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -102,7 +103,7 @@ func getAccessToken(permissions []string) (string, error) {
 	token, ok := result["token"].(string)
 	if !ok || token == "" {
 		if desc, ok := result["error_description"].(string); ok {
-			return "", fmt.Errorf(desc)
+			return "", errors.New(desc)
 		}
 		return "", fmt.Errorf("failed to get access token")
 	}

@@ -8,7 +8,7 @@ Part of the [network-tokenization](../) multi-language project.
 
 ## Requirements
 
-- Go 1.21+
+- Go 1.26+
 - GP API credentials (`GP_API_APP_ID`, `GP_API_APP_KEY`) with network tokenization enabled
 
 ---
