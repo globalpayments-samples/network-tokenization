@@ -10,7 +10,7 @@
 
 3. **Direct-HTTP langs send amount as minor-unit string, not a decimal.** `.NET`, Java, Python, and Go all convert `amount` to cents and stringify it before sending (e.g., `"1000"` for $10.00). The SDK handles this for PHP and Node.js automatically.
 
-4. **Go and Java declare the GP SDK in their dep files but never use it.** `go/go.mod` lists `globalpayments/go-sdk v1.1.3`; `java/pom.xml` lists `globalpayments-sdk 14.2.20`. Neither imports the SDK — all calls are direct HTTP. The entries are unused and can be removed.
+4. **Java declares the GP SDK in its dep file but never uses it.** `java/pom.xml` lists `globalpayments-sdk 14.2.20` but nothing imports it, all calls are direct HTTP. The entry is unused and can be removed. Go makes direct HTTP calls too and has no GP SDK in `go/go.mod`.
 
 ## Repository Structure
 
@@ -39,7 +39,7 @@
 
 ### Go (net/http, direct HTTP)
 - [`go/main.go`](go/main.go) — all endpoints; handler functions `handleConfig()`, `handleCreateNetworkToken()`, `handleListTokens()`, `handleProcessPayment()`; `storage_mode: ON_SUCCESS` in `handleCreateNetworkToken()`, `usage_mode: USE_NETWORK_TOKEN` in `handleProcessPayment()`; token storage in `~/.network-tokens/tokens.json`
-- [`go/go.mod`](go/go.mod) — lists `globalpayments/go-sdk v1.1.3` but unused
+- [`go/go.mod`](go/go.mod): only `joho/godotenv`, no GP SDK
 
 ### Shared
 - [`docker-compose.yml`](docker-compose.yml) — multi-service orchestration
@@ -107,6 +107,6 @@ Token storage uses flat JSON files with no encryption or access control. Go and 
 - PHP: `globalpayments/php-sdk` ^13.4
 - Node.js: `globalpayments-api` ^3.10.6
 - Java: `globalpayments-sdk` 14.2.20 (declared in pom.xml, unused)
-- Go: `globalpayments/go-sdk` v1.1.3 (declared in go.mod, unused)
+- Go: no GP SDK (godotenv only)
 - .NET: no GP SDK (DotEnv.Net 3.2.1 only)
-- Python: no GP SDK (Flask 3.0.0 only)
+- Python: no GP SDK (Flask 3.1.3 only)
