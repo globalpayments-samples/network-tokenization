@@ -35,6 +35,22 @@ public class ProcessPaymentServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final Dotenv dotenv = Dotenv.load();
 
+    /** An error the GP API sent back. Its message is shown on the page. */
+    private static class GatewayException extends Exception {
+        GatewayException(String message) { super(message); }
+    }
+
+    private void writeError(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.getWriter().write(new JSONObject().put("success", false).put("message", message).toString());
+    }
+
+    // Keep the details in the server log, the page only gets a generic message
+    private void writeUnexpectedError(HttpServletResponse response, String step, Exception e) throws IOException {
+        log(step + " failed", e);
+        writeError(response, "Unexpected server error, see the server log");
+    }
+
     private String generateNonce() {
         SecureRandom random = new SecureRandom();
         byte[] bytes = new byte[16];
@@ -87,12 +103,17 @@ public class ProcessPaymentServlet extends HttpServlet {
         String body = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
             .lines().collect(Collectors.joining());
 
-        if (status < 200 || status >= 300)
-            throw new Exception("Failed to get access token: " + body);
-
-        JSONObject result = new JSONObject(body);
+        JSONObject result;
+        try {
+            result = new JSONObject(body);
+        } catch (Exception e) {
+            throw new GatewayException("Failed to get access token: " + body);
+        }
         String token = result.optString("token", "");
-        if (token.isEmpty()) throw new Exception(result.optString("error_description", "Failed to get access token"));
+        if (status < 200 || status >= 300 || token.isEmpty()) {
+            String desc = result.optString("error_description", result.optString("detailed_error_description", ""));
+            throw new GatewayException(desc.isEmpty() ? "Failed to get access token: " + body : desc);
+        }
         return token;
     }
 
@@ -150,9 +171,10 @@ public class ProcessPaymentServlet extends HttpServlet {
             result.put("success", true);
             result.put("data", dataObj);
             response.getWriter().write(result.toString());
+        } catch (GatewayException e) {
+            writeError(response, e.getMessage());
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().write(new JSONObject().put("success", false).put("message", e.getMessage()).toString());
+            writeUnexpectedError(response, "config", e);
         }
     }
 
@@ -161,8 +183,10 @@ public class ProcessPaymentServlet extends HttpServlet {
             String body = request.getReader().lines().collect(Collectors.joining());
             JSONObject jsonRequest = new JSONObject(body);
 
-            if (!jsonRequest.has("payment_reference"))
-                throw new Exception("Missing payment_reference");
+            if (!jsonRequest.has("payment_reference")) {
+                writeError(response, "Missing payment_reference");
+                return;
+            }
 
             String paymentReference = jsonRequest.getString("payment_reference");
             String accessToken = getAccessToken(null);
@@ -257,9 +281,10 @@ public class ProcessPaymentServlet extends HttpServlet {
             resultObj.put("message", "Network token created successfully");
             response.getWriter().write(resultObj.toString());
 
+        } catch (GatewayException e) {
+            writeError(response, e.getMessage());
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().write(new JSONObject().put("success", false).put("message", e.getMessage()).toString());
+            writeUnexpectedError(response, "create-network-token", e);
         }
     }
 
@@ -271,8 +296,7 @@ public class ProcessPaymentServlet extends HttpServlet {
             result.put("data", tokens);
             response.getWriter().write(result.toString());
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().write(new JSONObject().put("success", false).put("message", e.getMessage()).toString());
+            writeUnexpectedError(response, "list-tokens", e);
         }
     }
 
@@ -281,10 +305,14 @@ public class ProcessPaymentServlet extends HttpServlet {
             String body = request.getReader().lines().collect(Collectors.joining());
             JSONObject jsonRequest = new JSONObject(body);
 
-            if (!jsonRequest.has("pmt_id"))
-                throw new Exception("Missing pmt_id");
-            if (!jsonRequest.has("amount") || jsonRequest.getDouble("amount") <= 0)
-                throw new Exception("Invalid amount");
+            if (!jsonRequest.has("pmt_id")) {
+                writeError(response, "Missing pmt_id");
+                return;
+            }
+            if (!(jsonRequest.optDouble("amount", 0) > 0)) {
+                writeError(response, "Invalid amount");
+                return;
+            }
 
             String pmtId = jsonRequest.getString("pmt_id");
             double amount = jsonRequest.getDouble("amount");
@@ -369,9 +397,10 @@ public class ProcessPaymentServlet extends HttpServlet {
             result.put("message", "Payment processed successfully");
             response.getWriter().write(result.toString());
 
+        } catch (GatewayException e) {
+            writeError(response, e.getMessage());
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().write(new JSONObject().put("success", false).put("message", e.getMessage()).toString());
+            writeUnexpectedError(response, "process-payment", e);
         }
     }
 }
