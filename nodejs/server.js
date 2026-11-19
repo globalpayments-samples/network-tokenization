@@ -7,6 +7,7 @@
  */
 
 import express from 'express';
+import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
 import fs from 'fs/promises';
@@ -27,7 +28,9 @@ const dataDir = './data';
 const tokensFile = path.join(dataDir, 'tokens.json');
 
 // Middleware
-app.use(express.static('.'));
+// Serve the page and its own assets only, not the server code, package files or .env
+const indexFile = fileURLToPath(new URL('./index.html', import.meta.url));
+app.get(['/', '/index.html'], (req, res) => res.sendFile(indexFile));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
