@@ -16,12 +16,15 @@ import hashlib
 import secrets
 import urllib.request
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__, static_folder='.')
+app = Flask(__name__, static_folder=None)
+
+# Only the page is public, not server.py, requirements.txt or .env
+PAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
@@ -94,7 +97,7 @@ def write_tokens(tokens):
 
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    return send_from_directory(PAGE_DIR, 'index.html')
 
 
 @app.route('/config', methods=['GET'])
