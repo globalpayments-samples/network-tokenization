@@ -8,7 +8,7 @@ Part of the [network-tokenization](../) multi-language project.
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 24+
 - npm
 - GP API credentials (`GP_API_APP_ID`, `GP_API_APP_KEY`) with network tokenization enabled
 
@@ -290,6 +290,6 @@ docker run -p 8000:8000 --env-file .env network-tokenization-nodejs
 
 **`Failed to create network token`** — Network tokenization may not be enabled on the sandbox account. Contact Global Payments support to confirm `PMT_POST_Create_Single` is available.
 
-**`node: command not found`** — Install Node.js 18+ from [nodejs.org](https://nodejs.org).
+**`node: command not found`** — Install Node.js 24+ from [nodejs.org](https://nodejs.org).
 
 **Port already in use** — Set `PORT=8001` in `.env` and restart.

@@ -16,12 +16,26 @@ import hashlib
 import secrets
 import urllib.request
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__, static_folder='.')
+app = Flask(__name__, static_folder=None)
+
+# Only the page is public, not server.py, requirements.txt or .env
+PAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+class GatewayError(Exception):
+    """An error the GP API sent back. Its message is shown on the page."""
+
+
+def unexpected_error(step):
+    # Keep the details in the server log, the page only gets a generic message
+    app.logger.exception('%s failed', step)
+    return jsonify({'success': False, 'message': 'Unexpected server error, see the server log'}), 400
+
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
@@ -66,13 +80,20 @@ def get_access_token(permissions=None):
         method='POST',
     )
 
-    with urllib.request.urlopen(req) as resp:
-        result = json.loads(resp.read().decode('utf-8'))
+    try:
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        try:
+            result = json.loads(e.read().decode('utf-8'))
+        except ValueError:
+            result = {}
 
     token = result.get('token')
     if not token:
-        desc = result.get('error_description', 'Failed to get access token')
-        raise Exception(desc)
+        desc = (result.get('error_description') or result.get('detailed_error_description')
+                or 'Failed to get access token')
+        raise GatewayError(desc)
     return token
 
 
@@ -94,7 +115,7 @@ def write_tokens(tokens):
 
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    return send_from_directory(PAGE_DIR, 'index.html')
 
 
 @app.route('/config', methods=['GET'])
@@ -102,8 +123,10 @@ def get_config():
     try:
         token = get_access_token(['PMT_POST_Create_Single'])
         return jsonify({'success': True, 'data': {'accessToken': token}})
-    except Exception as e:
+    except GatewayError as e:
         return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception:
+        return unexpected_error('config')
 
 
 @app.route('/create-network-token', methods=['POST'])
@@ -111,7 +134,7 @@ def create_network_token():
     try:
         data = request.get_json()
         if not data or not data.get('payment_reference'):
-            raise Exception('Missing payment_reference')
+            return jsonify({'success': False, 'message': 'Missing payment_reference'}), 400
 
         access_token = get_access_token()
 
@@ -188,8 +211,10 @@ def create_network_token():
             'message': 'Network token created successfully',
         })
 
-    except Exception as e:
+    except GatewayError as e:
         return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception:
+        return unexpected_error('create-network-token')
 
 
 @app.route('/list-tokens', methods=['GET'])
@@ -197,8 +222,8 @@ def list_tokens():
     try:
         tokens = read_tokens()
         return jsonify({'success': True, 'data': tokens})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception:
+        return unexpected_error('list-tokens')
 
 
 @app.route('/process-payment', methods=['POST'])
@@ -206,11 +231,14 @@ def process_payment():
     try:
         data = request.get_json()
         if not data or not data.get('pmt_id'):
-            raise Exception('Missing pmt_id')
+            return jsonify({'success': False, 'message': 'Missing pmt_id'}), 400
 
-        amount = float(data.get('amount', 0))
+        try:
+            amount = float(data.get('amount', 0))
+        except (TypeError, ValueError):
+            amount = 0
         if amount <= 0:
-            raise Exception('Invalid amount')
+            return jsonify({'success': False, 'message': 'Invalid amount'}), 400
 
         currency = data.get('currency', 'USD')
 
@@ -275,8 +303,10 @@ def process_payment():
             'message': 'Payment processed successfully',
         })
 
-    except Exception as e:
+    except GatewayError as e:
         return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception:
+        return unexpected_error('process-payment')
 
 
 if __name__ == '__main__':
