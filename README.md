@@ -263,9 +263,11 @@ Credentials are available in the [GP Developer Portal](https://developer.globalp
 
 **Drop-In UI does not render** — The access token from `/config` may have expired (600 s TTL) or the `PMT_POST_Create_Single` permission is missing from the account. Reload the page to get a fresh token.
 
-**`no token returned` after verification** — The `/verifications` call succeeded but GP API did not return a `payment_method.id`. Network tokenization may not be enabled on the sandbox account. Contact support. A declined card or a single use token that was already used gives the same message, so try a fresh card entry first.
+**`no token returned` after verification** — The `/verifications` call succeeded but GP API did not return a `payment_method.id`. Network tokenization may not be enabled on the sandbox account. Contact support.
+A declined card or a single use token that was already used gives the same message, so try a fresh card entry first.
 
-**Port already in use** — Set `PORT=8001` (or any free port) in your `.env` and restart. PHP reads the port from the shell instead, so start it with `PORT=8001 ./run.sh`. Java does not read `PORT`, change `cargo.servlet.port` in `pom.xml`.
+**Port already in use** — Set `PORT=8001` (or any free port) in your `.env` and restart.
+PHP reads the port from the shell instead, so start it with `PORT=8001 ./run.sh`. Java does not read `PORT`, change `cargo.servlet.port` in `pom.xml`.
 
 **`toFixed is not a function` in the browser** — The `amount` field in the payment response is a string instead of a number. Ensure the backend returns `amount` as a numeric JSON value.
 

@@ -300,4 +300,4 @@ docker run -p 8000:8000 --env-file .env network-tokenization-php
 
 **`composer: command not found`** — Install Composer from [getcomposer.org](https://getcomposer.org) or run `php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php`.
 
-**Port already in use** — Start the server with `PORT=8001 ./run.sh`. `run.sh` reads the port from the shell, not from `.env`.
+**Port already in use?** Start the server with `PORT=8001 ./run.sh`. `run.sh` reads the port from the shell, not from `.env`.
