@@ -302,8 +302,8 @@ Standard sandbox cards:
 
 | Brand | Number | CVV | Expiry |
 |-------|--------|-----|--------|
-| Visa | 4263 9826 4026 9299 | 123 | Any future |
-| Mastercard | 5425 2334 2424 1200 | 123 | Any future |
+| Visa | 4263 9700 0000 5262 | 123 | Any future |
+| Mastercard | 5425 2300 0000 4415 | 123 | Any future |
 
 ---
 
