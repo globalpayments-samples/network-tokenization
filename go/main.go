@@ -225,6 +225,9 @@ func handleCreateNetworkToken(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if m, ok := result["detailed_error_description"].(string); ok && m != "" {
+			msg = m
+		}
 		writeJSON(w, 400, APIResponse{Success: false, Message: msg})
 		return
 	}
@@ -377,6 +380,9 @@ func handleProcessPayment(w http.ResponseWriter, r *http.Request) {
 					msg = m
 				}
 			}
+		}
+		if m, ok := result["detailed_error_description"].(string); ok && m != "" {
+			msg = m
 		}
 		writeJSON(w, 400, APIResponse{Success: false, Message: msg})
 		return
