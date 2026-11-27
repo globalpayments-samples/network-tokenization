@@ -65,15 +65,15 @@ GP_API_ENVIRONMENT=sandbox         # sandbox or production; controls API base UR
 PORT=8000                          # optional; all implementations default to 8000
 ```
 
-`PORT` is read by all six server files but is absent from all `.env.sample` files.
+`PORT` is read by the .NET, Go, Node.js and Python servers (from `.env` or the shell) and by `php/run.sh` (from the shell only). Java ignores it, its port is `cargo.servlet.port` in `java/pom.xml`. It is absent from all `.env.sample` files.
 
 ## Test Cards / Sandbox Credentials
 
 | Brand | Number | CVV | Expiry | Notes |
 |-------|--------|-----|--------|-------|
 | Visa | 4622 9431 2305 2970 | 999 | 12/25 | Required for network tokenization |
-| Visa | 4263 9826 4026 9299 | 123 | Any future | Standard GP-API sandbox card |
-| Mastercard | 5425 2334 2424 1200 | 123 | Any future | Standard GP-API sandbox card |
+| Visa | 4263 9700 0000 5262 | 123 | Any future | Standard GP-API sandbox card |
+| Mastercard | 5425 2300 0000 4415 | 123 | Any future | Standard GP-API sandbox card |
 
 Network tokenization must be enabled on the GP API sandbox account before the first card will work. Standard cards test other GP-API features only.
 

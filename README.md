@@ -227,12 +227,14 @@ Network tokenization requires a specific test card:
 |-------|--------|-----|--------|
 | Visa | 4622 9431 2305 2970 | 999 | 12/25 |
 
+Use exactly 12/25 for this card. With any other expiry the sandbox rejects it with `Using test system. Please use pre-approved test cards ONLY`.
+
 Standard GP API sandbox cards for other testing:
 
 | Brand | Number | CVV | Expiry |
 |-------|--------|-----|--------|
-| Visa | 4263 9826 4026 9299 | 123 | Any future |
-| Mastercard | 5425 2334 2424 1200 | 123 | Any future |
+| Visa | 4263 9700 0000 5262 | 123 | Any future |
+| Mastercard | 5425 2300 0000 4415 | 123 | Any future |
 
 > **Note:** Network tokenization must be enabled on your GP API account before you can use it. Contact Global Payments to confirm sandbox and production access before going live.
 
@@ -261,9 +263,9 @@ Credentials are available in the [GP Developer Portal](https://developer.globalp
 
 **Drop-In UI does not render** — The access token from `/config` may have expired (600 s TTL) or the `PMT_POST_Create_Single` permission is missing from the account. Reload the page to get a fresh token.
 
-**`no token returned` after verification** — The `/verifications` call succeeded but GP API did not return a `payment_method.id`. Network tokenization may not be enabled on the sandbox account. Contact support.
+**`no token returned` after verification** — The `/verifications` call succeeded but GP API did not return a `payment_method.id`. Network tokenization may not be enabled on the sandbox account. Contact support. A declined card or a single use token that was already used gives the same message, so try a fresh card entry first.
 
-**Port already in use** — Set `PORT=8001` (or any free port) in your `.env` and restart.
+**Port already in use** — Set `PORT=8001` (or any free port) in your `.env` and restart. PHP reads the port from the shell instead, so start it with `PORT=8001 ./run.sh`. Java does not read `PORT`, change `cargo.servlet.port` in `pom.xml`.
 
 **`toFixed is not a function` in the browser** — The `amount` field in the payment response is a string instead of a number. Ensure the backend returns `amount` as a numeric JSON value.
 

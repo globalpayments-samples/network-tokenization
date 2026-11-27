@@ -276,8 +276,8 @@ Standard sandbox cards:
 
 | Brand | Number | CVV | Expiry |
 |-------|--------|-----|--------|
-| Visa | 4263 9826 4026 9299 | 123 | Any future |
-| Mastercard | 5425 2334 2424 1200 | 123 | Any future |
+| Visa | 4263 9700 0000 5262 | 123 | Any future |
+| Mastercard | 5425 2300 0000 4415 | 123 | Any future |
 
 ---
 
@@ -300,4 +300,4 @@ docker run -p 8000:8000 --env-file .env network-tokenization-php
 
 **`composer: command not found`** — Install Composer from [getcomposer.org](https://getcomposer.org) or run `php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php`.
 
-**Port already in use** — Set `PORT=8001` in `.env` and restart.
+**Port already in use** — Start the server with `PORT=8001 ./run.sh`. `run.sh` reads the port from the shell, not from `.env`.
