@@ -189,6 +189,8 @@ public class Program
                     var msg = "Failed to create network token";
                     if (errJson.TryGetProperty("details", out var details) && details.GetArrayLength() > 0)
                         msg = details[0].GetProperty("description").GetString() ?? msg;
+                    if (errJson.TryGetProperty("detailed_error_description", out var detailsDesc) && !string.IsNullOrEmpty(detailsDesc.GetString()))
+                        msg = detailsDesc.GetString()!;
                     return Results.Json(new { success = false, message = msg }, statusCode: 400);
                 }
 
@@ -334,6 +336,8 @@ public class Program
                     var errMsg = "Transaction failed";
                     if (errJson.TryGetProperty("details", out var dets) && dets.GetArrayLength() > 0)
                         errMsg = dets[0].GetProperty("description").GetString() ?? errMsg;
+                    if (errJson.TryGetProperty("detailed_error_description", out var detsDesc) && !string.IsNullOrEmpty(detsDesc.GetString()))
+                        errMsg = detsDesc.GetString()!;
                     return Results.Json(new { success = false, message = errMsg }, statusCode: 400);
                 }
 

@@ -230,6 +230,8 @@ public class ProcessPaymentServlet extends HttpServlet {
                         JSONArray details = errJson.getJSONArray("details");
                         if (details.length() > 0) msg = details.getJSONObject(0).optString("description", msg);
                     }
+                    String detailed = errJson.optString("detailed_error_description", "");
+                    if (!detailed.isEmpty()) msg = detailed;
                 } catch (Exception ignored) {}
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.getWriter().write(new JSONObject().put("success", false).put("message", msg).toString());
@@ -363,6 +365,8 @@ public class ProcessPaymentServlet extends HttpServlet {
                         JSONArray details = errJson.getJSONArray("details");
                         if (details.length() > 0) msg = details.getJSONObject(0).optString("description", msg);
                     }
+                    String detailed = errJson.optString("detailed_error_description", "");
+                    if (!detailed.isEmpty()) msg = detailed;
                 } catch (Exception ignored) {}
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.getWriter().write(new JSONObject().put("success", false).put("message", msg).toString());

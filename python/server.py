@@ -174,6 +174,7 @@ def create_network_token():
             details = err_body.get('details', [])
             if details:
                 msg = details[0].get('description', msg)
+            msg = err_body.get('detailed_error_description') or msg
             return jsonify({'success': False, 'message': msg}), 400
 
         pmt_id = ''
@@ -283,6 +284,7 @@ def process_payment():
             details = err_body.get('details', [])
             if details:
                 msg = details[0].get('description', msg)
+            msg = err_body.get('detailed_error_description') or msg
             return jsonify({'success': False, 'message': msg}), 400
 
         txn_id = result.get('id', '')
