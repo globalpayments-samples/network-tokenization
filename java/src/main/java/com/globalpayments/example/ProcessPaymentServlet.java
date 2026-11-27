@@ -35,7 +35,7 @@ public class ProcessPaymentServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final Dotenv dotenv = Dotenv.load();
 
-    /** An error the GP API sent back. Its message is shown on the page. */
+    /** The GP API refused the access token request. The details go to the server log. */
     private static class GatewayException extends Exception {
         GatewayException(String message) { super(message); }
     }
@@ -43,6 +43,12 @@ public class ProcessPaymentServlet extends HttpServlet {
     private void writeError(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         response.getWriter().write(new JSONObject().put("success", false).put("message", message).toString());
+    }
+
+    // The GP API's reason stays in the server log, the page gets a fixed message
+    private void writeTokenError(HttpServletResponse response, String step, GatewayException e) throws IOException {
+        log(step + ": access token request failed", e);
+        writeError(response, "Could not get a GP API access token, check GP_API_APP_ID and GP_API_APP_KEY");
     }
 
     // Keep the details in the server log, the page only gets a generic message
@@ -172,7 +178,7 @@ public class ProcessPaymentServlet extends HttpServlet {
             result.put("data", dataObj);
             response.getWriter().write(result.toString());
         } catch (GatewayException e) {
-            writeError(response, e.getMessage());
+            writeTokenError(response, "config", e);
         } catch (Exception e) {
             writeUnexpectedError(response, "config", e);
         }
@@ -282,7 +288,7 @@ public class ProcessPaymentServlet extends HttpServlet {
             response.getWriter().write(resultObj.toString());
 
         } catch (GatewayException e) {
-            writeError(response, e.getMessage());
+            writeTokenError(response, "create-network-token", e);
         } catch (Exception e) {
             writeUnexpectedError(response, "create-network-token", e);
         }
@@ -398,7 +404,7 @@ public class ProcessPaymentServlet extends HttpServlet {
             response.getWriter().write(result.toString());
 
         } catch (GatewayException e) {
-            writeError(response, e.getMessage());
+            writeTokenError(response, "process-payment", e);
         } catch (Exception e) {
             writeUnexpectedError(response, "process-payment", e);
         }
