@@ -19,7 +19,7 @@ Part of the [network-tokenization](../) multi-language project.
 ```
 python/
 ├── .env.sample         # Environment variable template
-├── requirements.txt    # Flask, gunicorn, python-dotenv (no GP SDK)
+├── requirements.txt    # Flask, python-dotenv (no GP SDK)
 ├── server.py           # All 4 endpoints as Flask routes
 ├── data/
 │   └── tokens.json     # Saved PMT IDs (auto-created)
