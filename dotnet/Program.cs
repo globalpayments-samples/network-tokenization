@@ -342,6 +342,12 @@ public class Program
                 var txStatus = "";
                 if (txResult.TryGetProperty("action", out var txAction) && txAction.TryGetProperty("result_code", out var rcEl2))
                     txStatus = rcEl2.GetString() ?? "";
+                if (!string.Equals(txStatus, "SUCCESS", StringComparison.OrdinalIgnoreCase))
+                {
+                    // GP API sends declines back with HTTP 200, so the result code decides
+                    var declined = txResult.TryGetProperty("status", out var stEl) ? stEl.GetString() : null;
+                    return Results.Json(new { success = false, message = "Transaction declined: " + (string.IsNullOrEmpty(declined) ? txStatus : declined) }, statusCode: 400);
+                }
                 var authCode = "";
                 if (txResult.TryGetProperty("payment_method", out var txPm) &&
                     txPm.TryGetProperty("card", out var txCard) &&
