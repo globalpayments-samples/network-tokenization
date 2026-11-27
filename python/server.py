@@ -28,7 +28,14 @@ PAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GatewayError(Exception):
-    """An error the GP API sent back. Its message is shown on the page."""
+    """The GP API refused the access token request. The details go to the server log."""
+
+
+def token_error(step):
+    # The GP API's reason stays in the server log, the page gets a fixed message
+    app.logger.exception('%s: access token request failed', step)
+    return jsonify({'success': False,
+                    'message': 'Could not get a GP API access token, check GP_API_APP_ID and GP_API_APP_KEY'}), 400
 
 
 def unexpected_error(step):
@@ -123,8 +130,8 @@ def get_config():
     try:
         token = get_access_token(['PMT_POST_Create_Single'])
         return jsonify({'success': True, 'data': {'accessToken': token}})
-    except GatewayError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
+    except GatewayError:
+        return token_error('config')
     except Exception:
         return unexpected_error('config')
 
@@ -211,8 +218,8 @@ def create_network_token():
             'message': 'Network token created successfully',
         })
 
-    except GatewayError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
+    except GatewayError:
+        return token_error('create-network-token')
     except Exception:
         return unexpected_error('create-network-token')
 
@@ -303,8 +310,8 @@ def process_payment():
             'message': 'Payment processed successfully',
         })
 
-    except GatewayError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
+    except GatewayError:
+        return token_error('process-payment')
     except Exception:
         return unexpected_error('process-payment')
 
