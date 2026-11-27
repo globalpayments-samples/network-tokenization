@@ -288,6 +288,9 @@ def process_payment():
         txn_id = result.get('id', '')
         action = result.get('action', {})
         status = action.get('result_code', result.get('status', ''))
+        if str(status).upper() != 'SUCCESS':
+            # GP API sends declines back with HTTP 200, so the result code decides
+            return jsonify({'success': False, 'message': 'Transaction declined: ' + str(result.get('status') or status)}), 400
         auth_code = result.get('payment_method', {}).get('card', {}).get('authcode', '')
 
         return jsonify({

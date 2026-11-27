@@ -390,6 +390,15 @@ func handleProcessPayment(w http.ResponseWriter, r *http.Request) {
 			status = rc
 		}
 	}
+	if !strings.EqualFold(status, "SUCCESS") {
+		// GP API sends declines back with HTTP 200, so the result code decides
+		declined := status
+		if s, ok := result["status"].(string); ok && s != "" {
+			declined = s
+		}
+		writeJSON(w, 400, APIResponse{Success: false, Message: "Transaction declined: " + declined})
+		return
+	}
 	if pm, ok := result["payment_method"].(map[string]interface{}); ok {
 		if card, ok := pm["card"].(map[string]interface{}); ok {
 			if ac, ok := card["authcode"].(string); ok {

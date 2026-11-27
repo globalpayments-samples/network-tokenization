@@ -375,6 +375,11 @@ public class ProcessPaymentServlet extends HttpServlet {
             if (txResult.has("action")) {
                 txStatus = txResult.getJSONObject("action").optString("result_code", "");
             }
+            if (!"SUCCESS".equalsIgnoreCase(txStatus)) {
+                // GP API sends declines back with HTTP 200, so the result code decides
+                writeError(response, "Transaction declined: " + txResult.optString("status", txStatus));
+                return;
+            }
             String authCode = "";
             if (txResult.has("payment_method")) {
                 JSONObject txPm = txResult.getJSONObject("payment_method");
